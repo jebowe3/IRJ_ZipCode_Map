@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Iowa Rural Justice: Attorneys by Zip Code</title>
+  <link rel="icon" type="image/jpg" href="images/icon.jpg" />
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <link href='https://api.mapbox.com/mapbox-assembly/v0.8.0/assembly.min.css' rel='stylesheet'>
+  <link href='https://api.mapbox.com/mapbox.js/v3.2.1/mapbox.css' rel='stylesheet' />
+  <link href="https://fonts.googleapis.com/css?family=Rubik&display=swap" rel="stylesheet">
+
+  <style type="text/css">
+    h1 {
+      font-size: 30px;
+      font-family: 'Rubik', sans-serif;
+      display: inline-block;
+      color: white;
+      margin-left: 18px;
+      margin-right: 30px;
+      padding-top: 20px;
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-family: 'Rubik', sans-serif;
+      padding-bottom: 0px;
+    }
+
+    h3 {
+      font-size: 5px;
+      font-family: 'Rubik', sans-serif;
+      padding-top: 0px;
+    }
+
+    h4 {
+      font-size: 14px;
+      font-family: 'Rubik', sans-serif;
+      display: inline-block;
+      margin-right: 16px;
+      margin-left: 19px;
+      padding-bottom: 1px;
+      color: white;
+    }
+
+    body {
+      margin: 0px;
+      height: 100%;
+      width: 100%;
+    }
+
+    /* Add banner to header background */
+    header {
+      background-image: url('images/Iowa_Prairie.jpg');
+      position: fixed;
+      width: 100%;
+      height: 100px;
+      background-color: #000000;
+      box-shadow: 0px 5px 5px black;
+      z-index: 800;
+    }
+
+    /* Set map parameters */
+    #map {
+      position: fixed;
+      top: 100px;
+      bottom: 0px;
+      width: 100%;
+    }
+
+    .legend {
+      background-color: #fff;
+      border-radius: 3px;
+      bottom: 30px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.10);
+      font: 12px/20px 'Rubik', 'Rubik', 'Rubik', sans-serif;
+      padding: 10px;
+      position: absolute;
+      right: 10px;
+      z-index: 1;
+      line-height: 18px;
+      color: #555;
+    }
+
+    .legend i {
+      width: 50px;
+      height: 18px;
+      float: left;
+      margin-right: 25px;
+      opacity: 0.7;
+    }
+
+    .leaflet-control-layers-expanded {
+      font-family: 'Rubik', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Iowa Rural Justice Project: Attorneys by Zip Code</h1><br>
+    <h4>Map by <a target='blank' href='https://jebowe3.github.io/Map-Portfolio/'>Jay Bowen</a></h4>
+  </header>
+  <div id="map"></div>
+
+  <!-- load scripts -->
+  <script src='https://api.mapbox.com/mapbox-assembly/v0.8.0/assembly.js'></script>
+  <script src='https://api.mapbox.com/mapbox.js/v3.2.1/mapbox.js'></script>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
+
+  <script type="text/javascript">
+    // Initialize the map
+    var map = L.map('map').setView([42.05, -93.5], 8);
+
+    // Load a tile layer
+    L.tileLayer('https://tile.thunderforest.com/neighbourhood/{z}/{x}/{y}.png?apikey=dd2dca516d114fd89c0b1403358cbfa8', {
+      attribution: '&copy; <a href="http://www.thunderforest.com/">Thunderforest</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      apikey: '<dd2dca516d114fd89c0b1403358cbfa8>',
+      maxZoom: 18,
+      minZoom: 6,
+    }).addTo(map);
+
+    // add a scale bar
+    L.control.scale().addTo(map); // Initialize the map
+
+    // Add a function to style the zip codes by their attorney counts (jenks)
+    function getColor(d) {
+      return d > 422.00 ? '#8c2d04' :
+        d > 161.00 ? '#cc4c02' :
+        d > 83.00 ? '#ec7014' :
+        d > 47.00 ? '#fe9929' :
+        d > 24.00 ? '#fec44f' :
+        d > 9.00 ? '#fee391' :
+        d > 0.00 ? '#ffffd4' :
+        '#1C00ff00';
+    };
+
+    // Add a function to style the zip codes by attorneys per thousand people (jenks)
+    function getShade(d) {
+      return d > 129.88 ? '#0c2c84' :
+        d > 78.80 ? '#225ea8' :
+        d > 13.70 ? '#1d91c0' :
+        d > 6.38 ? '#41b6c4' :
+        d > 1.98 ? '#7fcdbb' :
+        d > 0.62 ? '#c7e9b4' :
+        d > 0.01 ? '#ffffcc' :
+        '#1C00ff00';
+    };
+
+    // load the data asynchronously
+    // zip codes polygon from: https://www.arcgis.com/home/item.html?id=8d2012a2016e484dafaac0451f9aea24
+    d3.queue()
+      .defer(d3.json, 'data/Attys_by_Zip.geojson')
+      .await(drawMap); // load the data asynchronously
+
+    // define drawMap function
+    function drawMap(err, zips) {
+
+      var zipCodes = L.geoJson(zips, {
+
+        // style the layer
+        style: function(feature) {
+          return {
+            stroke: 0.5,
+            color: 'grey',
+            strokeOpacity: 0.75,
+            weight: 0.5,
+            fillColor: getColor(feature.properties.Count),
+            fillOpacity: 0.75
+          };
+        },
+
+        onEachFeature: function(feature, layer) {
+          // bind a popup window
+          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Office_Zip + '<br>' + feature.properties.Count + ' Attorneys</b></h2>' + feature.properties.popup, {
+            maxHeight: 300,
+            minWidth: 250,
+            maxWidth: 300,
+          });
+          // change layer style on mouseover
+          layer.on("mouseover", function(e) {
+            layer.setStyle({
+              color: '#3232FF',
+              weight: 3,
+              opacity: 0.5
+            });
+          });
+          // reset style on mouseout
+          layer.on("mouseout", function(e) {
+            zipCodes.resetStyle(e.target);
+          });
+
+        }
+
+      }).addTo(map); // add the layer to the map
+
+      var attysThds = L.geoJson(zips, {
+
+        // style the layer
+        style: function(feature) {
+          return {
+            stroke: 0.5,
+            color: 'grey',
+            strokeOpacity: 0.75,
+            weight: 0.5,
+            fillColor: getShade(feature.properties.Attys_perThousand),
+            fillOpacity: 0.75
+          };
+        },
+
+        onEachFeature: function(feature, layer) {
+          // bind a popup window
+          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Office_Zip + '<br>' + 'Attorneys/1000 People: ' + feature.properties.Attys_perThousand + '</b></h2>' + feature.properties.popup, {
+            maxHeight: 300,
+            minWidth: 250,
+            maxWidth: 300,
+          });
+          // change layer style on mouseover
+          layer.on("mouseover", function(e) {
+            layer.setStyle({
+              color: '#3232FF',
+              weight: 3,
+              opacity: 0.5
+            });
+          });
+          // reset style on mouseout
+          layer.on("mouseout", function(e) {
+            attysThds.resetStyle(e.target);
+          });
+
+        }
+
+      });
+
+      // dynamically fit the map to the zip codes polygon
+      map.fitBounds(zipCodes.getBounds());
+
+      // designate the layers as baselayers (allows only one open at a time)
+      var baselayers = {
+        "Attorneys by Zip Code": zipCodes,
+        "Attorneys per 1,000 People": attysThds
+      };
+
+      // all done with the layers, add them to layer control
+      L.control.layers(baselayers, null, {
+        collapsed: false,
+      }).addTo(map);
+
+      // create legends for both layers
+      var zipLegend = L.control({
+        position: 'bottomright'
+      });
+
+      var thdsLegend = L.control({
+        position: 'bottomright'
+      });
+
+      // add content to the legend
+      zipLegend.onAdd = function(map) {
+
+        var div = L.DomUtil.create('div', 'info legend'),
+          grades = [1.00, 9.00, 24.00, 47.00, 83.00, 161.00, 422.00],
+          labels = ["<h6 style='font-size:14px; font-weight:bold'>Attorneys by Zip Code</h6>"];
+
+        // loop through our density intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < grades.length; i++) {
+          div.innerHTML +=
+            labels.push('<i style="background:' + getColor(grades[i] + 1) + '"></i> ' +
+              grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] : '+'));
+        }
+        div.innerHTML = labels.join('<br>');
+        return div;
+      };
+
+      // add content to the legend
+      thdsLegend.onAdd = function(map) {
+
+        var div = L.DomUtil.create('div', 'info legend'),
+          grades = [0.01, 0.62, 1.98, 6.38, 13.70, 78.80, 129.88],
+          labels = ["<h6 style='font-size:14px; font-weight:bold'>Attorneys per 1,000 People</h6>"];
+
+        // loop through our density intervals and generate a label with a colored square for each interval
+        for (var i = 0; i < grades.length; i++) {
+          div.innerHTML +=
+            labels.push('<i style="background:' + getShade(grades[i] + 0.01) + '"></i> ' +
+              grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] : '+'));
+        }
+        div.innerHTML = labels.join('<br>');
+        return div;
+      };
+
+      // add this legend to the map, because this legend is on by default
+      zipLegend.addTo(map);
+
+      // when the user changes the baselayer, switch the legend
+      map.on('baselayerchange', function(eventLayer) {
+        // Switch to the Attorneys by Zip Code legend...
+        if (eventLayer.name === 'Attorneys by Zip Code') {
+          this.removeControl(thdsLegend);
+          zipLegend.addTo(this);
+        } else { // Or switch to the Attorneys per 1,000 People legend...
+          this.removeControl(zipLegend);
+          thdsLegend.addTo(this);
+        }
+      });
+
+    }; // end drawMap function
+  </script>
+</body>
+
+</html>
