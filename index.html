@@ -175,7 +175,7 @@
 
         onEachFeature: function(feature, layer) {
           // bind a popup window
-          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Office_Zip + '<br>' + feature.properties.Count + ' Attorneys</b></h2>' + feature.properties.popup, {
+          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Zip + '<br>' + feature.properties.Count + ' Attorneys</b></h2>' + feature.properties.popup, {
             maxHeight: 300,
             minWidth: 250,
             maxWidth: 300,
@@ -213,7 +213,7 @@
 
         onEachFeature: function(feature, layer) {
           // bind a popup window
-          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Office_Zip + '<br>' + 'Attorneys/1000 People: ' + feature.properties.Attys_perThousand + '</b></h2>' + feature.properties.popup, {
+          layer.bindPopup('<h2><b>Zip Code: ' + feature.properties.Zip + '<br>' + 'Attorneys/1000 People: ' + feature.properties.Attys_perThousand + '</b></h2>' + feature.properties.popup, {
             maxHeight: 300,
             minWidth: 250,
             maxWidth: 300,
